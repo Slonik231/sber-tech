@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Калькулятор стоимости проекта</title>
+    <meta charset="utf-8">
+    <style>
+        body {
+            background-color: #1f1f1f; /* черный цвет фона */
+            color: #dcdcdc; /* светлый цвет текста */
+            font-family: Arial, sans-serif; /* шрифт текста */
+            padding: 20px;
+        }
+
+        h1 {
+            color: #7f00ff; /* фиолетовый цвет для заголовков */
+        }
+
+        form {
+            background-color: #363636; /* цвет фона формы */
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        label {
+            color: #dcdcdc; /* светлый цвет текста меток */
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="submit"] {
+            background-color: #7f00ff; /* фиолетовый цвет для текстовых полей и кнопок */
+            color: #dcdcdc; /* светлый цвет текста в полях и кнопках */
+            border: none;
+            padding: 5px 10px;
+            margin-bottom: 10px;
+            border-radius: 3px;
+        }
+
+        ul {
+            list-style-type: none; /* убираем маркеры у списка */
+            padding: 0;
+        }
+
+        li {
+            margin-bottom: 10px;
+        }
+
+        .project {
+            margin-bottom: 20px;
+            padding: 10px;
+            background-color: #363636;
+            border-radius: 5px;
+        }
+
+        .project h3 {
+            color: #7f00ff; /* фиолетовый цвет для заголовков */
+        }
+
+        .employee {
+            background-color: #555555;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+
+        .employee label {
+            color: #dcdcdc;
+        }
+
+        .employee input[type="number"] {
+            background-color: #7f00ff;
+            color: #dcdcdc;
+            border: none;
+            padding: 5px 10px;
+            margin-bottom: 5px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Калькулятор стоимости проекта</h1>
+    <form method="POST">
+        <label for="project_name">Название проекта:</label>
+        <input type="text" name="project_name" id="project_name" required><br><br>
+
+        <label for="employees">Количество сотрудников:</label>
+        <input type="number" name="employees" id="employees" required><br><br>
+
+        <div id="employees_fields"></div>
+
+        <input type="submit" value="Добавить проект">
+    </form>
+
+    <h2>Проекты</h2>
+    <ul>
+        {% for project in projects %}
+        <li class="project">
+            <h3>Проект: {{ project.name }}</h3>
+            <p>Общая стоимость: {{ project.cost }}</p>
+            {% if project.perspective %}
+            <p style="color: green;">Перспективность: Да</p>
+            {% else %}
+            <p style="color: red;">Перспективность: Нет</p>
+            {% endif %}
+            <form action="/download/{{ project.id }}" method="GET">
+                <input type="submit" value="Скачать отчет в JSON">
+            </form>
+        </li>
+        {% endfor %}
+        
+    </ul>
+    <form action="/download/all" method="GET">
+        <input type="submit" value="Скачать отчеты всех проектов в JSON">
+    </form>
+    <script>
+        document.getElementById('employees').addEventListener('change', function() {
+            var employees = parseInt(this.value);
+            var html = '';
+            for (var i = 0; i < employees; i++) {
+                html += '<div class="employee">';
+                html += '<label for="employee_' + i + '_tasks">Количество задач:</label>';
+                html += '<input type="number" name="employee_' + i + '_tasks" id="employee_' + i + '_tasks" required><br>';
+                html += '<label for="employee_' + i + '_effort">Количество часов:</label>';
+                html += '<input type="number" step="0.01" name="employee_' + i + '_effort" id="employee_' + i + '_effort" required><br>';
+                html += '<label for="employee_' + i + '_emplcost">Стоимость часа работы сотрудника:</label>';
+                html += '<input type="number" step="0.01" name="employee_' + i + '_emplcost" id="employee_' + i + '_emplcost" required><br>';
+                html += '<label for="employee_' + i + '_percent">Процент выполнения задачи 0-1:</label>';
+                html += '<input type="number" step="0.01" name="employee_' + i + '_percent" id="employee_' + i + '_percent" required max="1"><br>';
+                html += '</div>';
+            }
+            document.getElementById('employees_fields').innerHTML = html;
+        });
+    </script>
+</body>
+</html>
