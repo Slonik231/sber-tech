@@ -1,10 +1,15 @@
-from flask import Flask, request, render_template, send_file
+from flask import Flask, request, render_template, send_file, redirect
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy.orm import sessionmaker
 import json
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///project.db'
 db = SQLAlchemy(app)
+
+# Create the sessionmaker inside the app context
+with app.app_context():
+    Session = sessionmaker(bind=db.engine)
 
 # Модель для проектов
 class Project(db.Model):
@@ -49,12 +54,35 @@ def evaluate_project(project):
     total_tasks = sum([employee_report.tasks for employee_report in project.employee_reports])
     total_effort = sum([employee_report.effort for employee_report in project.employee_reports])
     total_emplcost = sum([employee_report.emplcost for employee_report in project.employee_reports])
-    total_percent = sum([employee_report.percent for employee_report in project.employee_reports]) / len(project.employee_reports)  
+    total_percent = sum([employee_report.percent for employee_report in project.employee_reports]) / len(project.employee_reports)
 
     score = weights['employees'] * project.employees + weights['effort'] * total_effort + weights['emplcost'] * total_emplcost + weights['percent'] * total_percent
-    print(f'песпективность = {score}')
     perspective = score >= -580
     return perspective
+
+@app.route('/optimize/<int:project_id>', methods=['POST'])
+def optimize(project_id):
+    project = Project.query.get(project_id)
+    perspective = evaluate_project(project)
+
+    while not perspective:
+        for employee_report in project.employee_reports:
+            # Увеличиваем параметр 'percent' на 0.0003
+            employee_report.percent = min(employee_report.percent + 0.00003, 1.0)
+            # Уменьшаем параметры 'effort' и 'emplcost' на 0.1, но не допускаем слишком маленьких значений 'effort'
+            employee_report.effort = max(employee_report.effort - 0.1, 10)
+            employee_report.emplcost = max(employee_report.emplcost - 0.1, 0.1)
+
+        db.session.commit()  # Сохраняем изменения в базе данных
+
+        perspective = evaluate_project(project)
+        project.perspective = perspective
+
+        # Вычисляем и сохраняем новую стоимость проекта
+        project.cost = project.calculate_cost()
+        db.session.commit()  # Обновляем значение перспективности проекта и стоимость в базе данных
+
+    return redirect('/')
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -73,14 +101,10 @@ def index():
                 employee_report = EmployeeReport(tasks=int(tasks), effort=float(effort), emplcost=float(emplcost), percent=float(percent))
                 project.employee_reports.append(employee_report)
 
-        # Вычисляем общее количество тасков для всех сотрудников
         total_tasks = sum([employee_report.tasks for employee_report in project.employee_reports])
         project.tasks = total_tasks
 
-        # Вычисляем общую стоимость проекта
         project.cost = project.calculate_cost()
-
-        # Оцениваем перспективность проекта
         perspective = evaluate_project(project)
         project.perspective = perspective
 
@@ -89,7 +113,33 @@ def index():
 
     projects = Project.query.all()
     return render_template('index.html', projects=projects)
-    
+
+@app.route('/project/<int:project_id>', methods=['GET', 'POST'])
+def project(project_id):
+    project = Project.query.get(project_id)
+    if request.method == 'POST' and 'optimize' in request.form:
+        perspective = evaluate_project(project)
+        project.perspective = perspective
+
+        while not perspective:
+            for employee_report in project.employee_reports:
+                # Увеличиваем параметр 'percent' на 0.0003
+                employee_report.percent = min(employee_report.percent + 0.0003, 1.0)
+                # Уменьшаем параметры 'effort' и 'emplcost' на 0.1, но не допускаем слишком маленьких значений 'effort'
+                employee_report.effort = max(employee_report.effort - 0.1, 10)
+                employee_report.emplcost = max(employee_report.emplcost - 0.1, 0.1)
+
+            db.session.commit()  # Сохраняем изменения в базе данных
+
+            perspective = evaluate_project(project)
+            project.perspective = perspective
+
+            # Вычисляем и сохраняем новую стоимость проекта
+            project.cost = project.calculate_cost()
+            db.session.commit()  # Обновляем значение перспективности проекта и стоимость в базе данных
+
+    return render_template('project.html', project=project)
+
 @app.route('/download/<int:project_id>', methods=['GET'])
 def download(project_id):
     project = Project.query.get(project_id)
@@ -102,7 +152,7 @@ def download(project_id):
         'perspective': project.perspective,
         'employee_reports': []
     }
-    
+
     for employee_report in project.employee_reports:
         employee_report_data = {
             'tasks': employee_report.tasks,
@@ -112,12 +162,12 @@ def download(project_id):
         }
         project_data['employee_reports'].append(employee_report_data)
 
-    # Записываем данные в JSON-файл
+    project_data['cost'] = project.cost
+
     filename = f'{project.name}_report.json'
     with open(filename, 'w') as file:
         json.dump(project_data, file, indent=4)
 
-    # Отправляем файл пользователю
     return send_file(filename, as_attachment=True)
 
 @app.route('/download/all', methods=['GET'])
@@ -147,12 +197,10 @@ def download_all():
 
         all_projects_data.append(project_data)
 
-    # Записываем данные всех проектов в JSON-файл
     filename = 'all_projects_report.json'
     with open(filename, 'w') as file:
         json.dump(all_projects_data, file, indent=4)
 
-    # Отправляем файл пользователю
     return send_file(filename, as_attachment=True)
 
 if __name__ == '__main__':

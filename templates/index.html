@@ -102,12 +102,17 @@
             <p style="color: green;">Перспективность: Да</p>
             {% else %}
             <p style="color: red;">Перспективность: Нет</p>
+            <form action="/optimize/{{ project.id }}" method="POST">
+                <input type="submit" value="Оптимизировать">
+            </form>
             {% endif %}
             <form action="/download/{{ project.id }}" method="GET">
                 <input type="submit" value="Скачать отчет в JSON">
             </form>
         </li>
         {% endfor %}
+        
+    
         
     </ul>
     <form action="/download/all" method="GET">
