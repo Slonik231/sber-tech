@@ -57,6 +57,7 @@ def evaluate_project(project):
     total_percent = sum([employee_report.percent for employee_report in project.employee_reports]) / len(project.employee_reports)
 
     score = weights['employees'] * project.employees + weights['effort'] * total_effort + weights['emplcost'] * total_emplcost + weights['percent'] * total_percent
+    print(score)
     perspective = score >= -580
     return perspective
 
@@ -68,10 +69,10 @@ def optimize(project_id):
     while not perspective:
         for employee_report in project.employee_reports:
             # Увеличиваем параметр 'percent' на 0.0003
-            employee_report.percent = min(employee_report.percent + 0.00003, 1.0)
+            employee_report.percent = min(employee_report.percent + 0.033, 1.0)
             # Уменьшаем параметры 'effort' и 'emplcost' на 0.1, но не допускаем слишком маленьких значений 'effort'
-            employee_report.effort = max(employee_report.effort - 0.1, 10)
-            employee_report.emplcost = max(employee_report.emplcost - 0.1, 0.1)
+            employee_report.effort = max(employee_report.effort - 50, 10)
+            employee_report.emplcost = max(employee_report.emplcost - 50, 100)
 
         db.session.commit()  # Сохраняем изменения в базе данных
 
@@ -126,8 +127,8 @@ def project(project_id):
                 # Увеличиваем параметр 'percent' на 0.0003
                 employee_report.percent = min(employee_report.percent + 0.0003, 1.0)
                 # Уменьшаем параметры 'effort' и 'emplcost' на 0.1, но не допускаем слишком маленьких значений 'effort'
-                employee_report.effort = max(employee_report.effort - 0.1, 10)
-                employee_report.emplcost = max(employee_report.emplcost - 0.1, 0.1)
+                employee_report.effort = max(employee_report.effort - 10, 10)
+                employee_report.emplcost = max(employee_report.emplcost - 10, 0.1)
 
             db.session.commit()  # Сохраняем изменения в базе данных
 
